@@ -13,5 +13,5 @@ lib_deps =
  
 	sparkfun/SparkFun External EEPROM Arduino Library@^3.2.9
 
-Note that the cli-lib has been added under libraries.
+Note that the cli-lib has been added under libraries manually.
 
