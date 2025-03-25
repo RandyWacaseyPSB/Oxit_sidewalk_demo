@@ -1,0 +1,9 @@
+# Format Style Options - Created with Clang Power Tools
+---
+BasedOnStyle: Microsoft
+ColumnLimit: 250
+IndentCaseLabels: true
+AlignConsecutiveMacros : true
+AlignConsecutiveAssignments : true
+SortIncludes: false
+...
