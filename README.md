@@ -6,7 +6,8 @@ Using Platformio extension for VScode
 Install libraries below or update platformio.ini using the below:
 
 lib_deps = 
-	adafruit/Adafruit NeoPixel@^1.12.5
+	
+ 	adafruit/Adafruit NeoPixel@^1.12.5
  
 	adafruit/Adafruit SHT4x Library@^1.0.5
  
