@@ -1,8 +1,8 @@
 # Oxit_sidewalk_demo
 sidewalk demo hardware from oxit
 
-Using Platformio extension for VScode
-
+VScode Extention: Platformio
+Board: Adafruit Feather ESP32-S3 2MB PSRAM
 Install libraries below or update platformio.ini using the below:
 
 lib_deps = 
@@ -13,5 +13,5 @@ lib_deps =
  
 	sparkfun/SparkFun External EEPROM Arduino Library@^3.2.9
 
-Note that the cli-lib has been added under libraries manually.
+Manually add cli-lib to project
 
