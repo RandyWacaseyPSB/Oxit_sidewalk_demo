@@ -863,7 +863,8 @@ static void handleButtonPress()
         }
 */
 
-        Serial.println("Button pressed - Switching Network");
+        Serial.println("Button pressed - Switching Network!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        delay(1000); // Delay added to allow user to monitor state change
 
         // State machine to cycle through Sidewalk protocols only
         switch (device_mode)
