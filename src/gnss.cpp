@@ -100,7 +100,7 @@ bool gnssCheckin(gnss_data_t *gnss_data_rtn)
         }
         else
         {
-            gnss_data_rtn->altitude = 0; // Set altitude to 0 if not valid
+            gnss_data_rtn->altitude = 0; // Set altitude to 0 if not valid 
         }
 
         // Set speed if valid

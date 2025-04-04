@@ -11,7 +11,7 @@
  * @date 2024-07-08
  *
  * @copyright Copyright (c) 2024
- * Confidentiality and Proprietary Rights Statement
+ * Confidentiality and Proprietary Rights Statement 
  * The sample, Code and Hardware, provided at no cost to the customer,
  * contains confidential and proprietary information belonging exclusively
  * to Oxit LLC. All contents, including but not limited to concepts, ideas,

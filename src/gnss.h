@@ -29,7 +29,7 @@ extern "C"
      **********************************************************************************************************/
 typedef struct
     {
-        double latitude;  // Latitude in degrees
+        double latitude;  // Latitude in degrees 
         double longitude; // Longitude in degrees
         double altitude;  // Altitude in meters
         double speed;     // Speed in meters per second
