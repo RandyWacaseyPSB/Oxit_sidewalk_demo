@@ -17,7 +17,7 @@ lib_deps =
  
 	adafruit/Adafruit SHT4x Library@^1.0.5
  
-	sparkfun/SparkFun External EEPROM Arduino Library@^3.2.9
+	sparkfun/SparkFun External EEPROM Arduino Library@^3.2.9  
 
 Manually add cli-lib to project 
 
