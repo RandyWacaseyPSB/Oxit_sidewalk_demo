@@ -80,6 +80,7 @@
 #include "SPIFFS.h"
 #include "lrwan_sidewalk_ex.h"
 #include "led_control.h"
+#include "gnss.h"
 
 /******************************************************************************
  * EXTERN VARIABLES
@@ -203,7 +204,6 @@ void helper_print_hex_array(const uint8_t *arr, size_t len);
 
 // This function handles the button press events, including debouncing and switching network modes.
 static void handleButtonPress();
-
 
 /**
  * @brief Checks the device connection status and updates the LED state accordingly.
@@ -616,6 +616,16 @@ void setup()
     // send get segment command
     mcm.get_segmented_file_download_status(&file_status);
 
+    bool gnssInitResult = init_gnss();
+    if (gnssInitResult)
+    {
+        Serial.println("GNSS initialized successfully");
+    }
+    else
+    {
+        Serial.println("Failed to initialize GNSS");
+    }
+
 #endif
 }
 
@@ -624,6 +634,10 @@ void loop()
 #if ENABLE_MANUFACTURING_MODE
     // do nothing
 #else
+
+    // structure to retrieve and hold the gnss data
+    static gnss_data_t gnss_data = {0};
+
     process_blink_requests(); // Add this line to process LED states
     // Run the state machine to handle the current application state
     // This function checks the current state and performs the appropriate actions
@@ -638,6 +652,22 @@ void loop()
 
     // Call the handleButtonPress function to handle button press and debounce
     handleButtonPress();
+
+    // See if new gnss data is available (dont hit too often)
+    static uint32_t gnss_checkin_timer_u32 = 0;
+    if ((millis() - gnss_checkin_timer_u32) > 50)
+    {
+        gnss_checkin_timer_u32 = millis();
+
+        bool dataAvail_b = gnssCheckin(&gnss_data);
+        if (dataAvail_b)
+        {
+
+            Serial.printf("@@@@  Lat:%f  Lon:%f  Alt:%.1f  #Sat:%d  @@@@\r\n    ", gnss_data.latitude, gnss_data.longitude, gnss_data.altitude, gnss_data.numSat);
+
+            // Process the GNSS data as needed
+        }
+    }
 
 #endif
 }
