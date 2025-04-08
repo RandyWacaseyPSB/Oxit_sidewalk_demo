@@ -11,7 +11,7 @@
  * @date 2024-07-08
  *
  * @copyright Copyright (c) 2024
- * Confidentiality and Proprietary Rights Statement 
+ * Confidentiality and Proprietary Rights Statement
  * The sample, Code and Hardware, provided at no cost to the customer,
  * contains confidential and proprietary information belonging exclusively
  * to Oxit LLC. All contents, including but not limited to concepts, ideas,
@@ -109,8 +109,10 @@ uint8_t saved_network_key[16] = {0};
 
 static system_state currentState = STATE_NO_LORAWAN_CRED;
 
+#if 0
 float temp = 0.0;
 float hum  = 0.0;
+#endif
 
 uplink_data_t uplink_data;
 
@@ -156,20 +158,24 @@ static bool initiate_network_join();
 /**
  * @brief Reads the sensor values.
  *
- * @param[out] temperature A pointer to store the temperature value.
- * @param[out] humidity A pointer to store the humidity value.
+ * @param[out] NO.... temperature A pointer to store the temperature value.
+ * @param[out] NO.... humidity A pointer to store the humidity value.
+ *
+ *  RAS: Void: Sensor = GNSS and data is stored in function that can be retrieved later
+ *
  */
-static void read_sensor(float *temperature, float *humidity);
+static void read_sensor(void /* float *temperature, float *humidity */);
 
 /**
  * @brief Sends the uplink data.
  *
- * @param temperature The temperature value.
- * @param humidity The humidity value.
+ * @param dta Pointer to null-terminated data (max len = 19 - 1 (NULL) - )
+ * @param NO:  humidity The humidity value.
  *
  * @return True if successful, false otherwise.
  */
-static bool send_uplink(float temperature, float humidity);
+// static bool send_uplink(float temperature, float humidity);
+static bool send_uplink(uint8_t *data_send /* float temperature, float humidity*/);
 
 /**
  * @brief Handles the downlink data.
@@ -211,6 +217,13 @@ static void handleButtonPress();
  */
 static void check_device_connection();
 
+/**
+ * @brief Store GNSS Values for later retrieval.
+ */
+#define GNSS_RETRIEVE (0x02)
+#define GNSS_STORE    (0x03)
+static void store_retrieve_GNSS(uint8_t store_or_retrieve, gnss_data_t *gnss_data_store);
+
 /******************************************************************************
  * STATIC FUNCTIONS
  ******************************************************************************/
@@ -238,14 +251,30 @@ static void set_mcm_connect_mode(ConnectionMode mode)
 
 static bool initiate_network_join()
 {
-    Serial.println("Joining  network...\n");
+    Serial.println("Joining  network...\r\n");
     // connect to the network
     mcm.connect_network();
     return true;
 }
 
-static void read_sensor(float *temperature, float *humid)
+static void read_sensor(void /* float *temperature, float *humid */)
 {
+    gnss_data_t gnss_data_store = {0};
+
+    bool dataAvail_b = gnssCheckin(&gnss_data_store);
+    if (dataAvail_b)
+    {
+        Serial.printf("@@@@  Lat:%f  Lon:%f  Alt:%.1f  #Sat:%d  @@@@\r\n", gnss_data_store.latitude, gnss_data_store.longitude, gnss_data_store.altitude, gnss_data_store.numSat);
+    }
+    else
+    {
+        Serial.println("@@@@ No GNSS data available, setting all to 0's @@@@\r\n");
+    }
+
+    // Store data or all 0's
+    store_retrieve_GNSS(GNSS_STORE, &gnss_data_store);
+
+#if 0
 
     Serial.println("Reading sensor data...");
     sensors_event_t humidity, temp;
@@ -268,9 +297,11 @@ static void read_sensor(float *temperature, float *humid)
 
     *temperature = temp.temperature;
     *humid       = humidity.relative_humidity;
+
+#endif
 }
 
-static bool send_uplink(float temperature, float humidity)
+static bool send_uplink(uint8_t *data_send /* float temperature, float humidity*/)
 {
     bool uplink_done = false;
 
@@ -278,17 +309,33 @@ static bool send_uplink(float temperature, float humidity)
     {
         if (mcm.is_connected() == false && (device_mode != ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE))
         {
-            Serial.println("Device not connected to network.\n");
+            Serial.println("Device not connected to network.\r\n");
             break;
         }
 
+        size_t data_len = strlen((const char *)data_send);
+
+        if (data_len > MAX_USER_PAYLOAD)
+        {
+            Serial.println("Data length exceeds maximum limit.\r\n");
+            break;
+        }
+        if (data_len == 0)
+        {
+            Serial.println("No data to send.\n");
+            break;
+        }
+
+        Serial.printf("Sending UPLINK ..... %d bytes of data: ", data_len);
+
         set_led_state(LED_SENDING_UPLINK);
         // Code to send uplink with temperature and humidity data
-        Serial.printf("Sending uplink: Temp = %.2f, Humidity = %.2f, Reboot counter = %d\r\n", temperature, humidity, uplink_data.reboot_count);
+        // Serial.printf("Sending uplink: Temp = %.2f, Humidity = %.2f, Reboot counter = %d\r\n", temperature, humidity, uplink_data.reboot_count);
 
-        uplink_data_t uplink_data;
-        uplink_data.temp = (uint16_t)(temperature * 100);
-        uplink_data.hum  = (uint16_t)(humidity * 100);
+        uplink_data_t uplink_data = {0}; // Initialize the uplink_data structure
+        // uplink_data.dta = {0}; // Initialize the data field to 0
+        memcpy(uplink_data.dta, data_send, data_len); // Copy the data to the uplink_data structure
+
         // reboot counter is already assigned on bootup
         Serial.print("Uplink in hex: ");
         helper_print_hex_array((uint8_t *)&uplink_data, sizeof(uplink_data));
@@ -325,18 +372,18 @@ static void handle_downlink()
         if (ConnectionMode::CONNECTION_MODE_LORAWAN == mcm.get_connect_mode())
         {
             // if mode is lorawan then its port
-            Serial.printf("Lorawan port: %d\n", seq_port);
+            Serial.printf("Lorawan port: %d\r\n", seq_port);
         }
         else
         {
             // if mode is sidewalk then its sidewalk sequence
-            Serial.printf("Sidewalk sequence: %d\n", seq_port);
+            Serial.printf("Sidewalk sequence: %d\r\n", seq_port);
         }
 
-        Serial.printf("Receivced payload Size: %d\n", received_len);
+        Serial.printf("Receivced payload Size: %d\r\n", received_len);
         Serial.println("Received Downlink data: ");
         helper_print_hex_array(received_data, received_len);
-        Serial.printf("\n");
+        Serial.printf("\r\n");
 
         Serial.println("----------------------------------------------------");
     }
@@ -636,7 +683,7 @@ void loop()
 #else
 
     // structure to retrieve and hold the gnss data
-    static gnss_data_t gnss_data = {0};
+    // static gnss_data_t gnss_data = {0};
 
     process_blink_requests(); // Add this line to process LED states
     // Run the state machine to handle the current application state
@@ -654,6 +701,8 @@ void loop()
     handleButtonPress();
 
     // See if new gnss data is available (dont hit too often)
+#if 0
+ MOVED TO READ_SENSOR   
     static uint32_t gnss_checkin_timer_u32 = 0;
     if ((millis() - gnss_checkin_timer_u32) > 50)
     {
@@ -668,6 +717,7 @@ void loop()
             // Process the GNSS data as needed
         }
     }
+#endif
 
 #endif
 }
@@ -685,7 +735,7 @@ const char *state_names[] = {"STATE_SET_CONNECT_MODE", "STATE_JOIN_NETWORK",    
  */
 void set_state(system_state state_value)
 {
-    Serial.printf("Setting state to: %s\n", state_names[state_value]);
+    Serial.printf("Setting state to: %s\r\n", state_names[state_value]);
     currentState = state_value;
 }
 
@@ -732,7 +782,7 @@ void run_state_machine()
         }
 
         case STATE_READ_SENSOR: {
-            read_sensor(&temp, &hum);
+            read_sensor(/*&temp, &hum*/); // Now , reads GNSS and stores result in function
             set_state(STATE_SEND_UPLINK);
             break;
         }
@@ -740,10 +790,57 @@ void run_state_machine()
         case STATE_SEND_UPLINK: {
             // if uplink is done then go to the next state
             // otherwise keep in idle state
-            if (send_uplink(temp, hum))
+
+            // Create array of location data
+            uint8_t xmt_array[19] = {0}; // 1 byte for type, 16 (MAX_USER_PAYLOAD) bytes for data, 2 bytes for overhead
+
+            // retrieve latitude and longitude from "store_retrieve_GNSS" function and insert
+            // these values into the array (convert floats to uint32_t by multiplying by 1000000
+            // and then converting to uint32_t)
+            gnss_data_t gnss_data = {0};
+            store_retrieve_GNSS(GNSS_RETRIEVE, &gnss_data); // Retrieve GNSS data
+            Serial.printf("Latitude: %f, Longitude: %f\r\n", gnss_data.latitude, gnss_data.longitude);
+            int32_t latitude  = (int32_t)(gnss_data.latitude * 1000000);
+            int32_t longitude = (int32_t)(gnss_data.longitude * 1000000);
+
+            // Insert GNSS data type + protocol into data stream
+            // State machine to cycle through Sidewalk protocols only
+            // =======================================================
+            switch (device_mode)
+            {
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE:
+                    xmt_array[0] = DATA_TYPE_GNSS_BLE;
+                    break;
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK:
+                    xmt_array[0] = DATA_TYPE_GNSS_FSK;
+                    break;
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS:
+                    xmt_array[0] = DATA_TYPE_GNSS_CSS;
+                    break;
+                default:
+                    xmt_array[0] = DATA_TYPE_GNSS_UNK;
+                    break;
+            }
+
+            // Insert Lat/Lon into data stream
+            // ==================================
+            xmt_array[1] = (latitude >> 24) & 0xFF; // Store latitude in the array
+            xmt_array[2] = (latitude >> 16) & 0xFF;
+            xmt_array[3] = (latitude >> 8) & 0xFF;
+            xmt_array[4] = latitude & 0xFF;
+            xmt_array[5] = (longitude >> 24) & 0xFF; // Store longitude in the array
+            xmt_array[6] = (longitude >> 16) & 0xFF;
+            xmt_array[7] = (longitude >> 8) & 0xFF;
+            xmt_array[8] = longitude & 0xFF;
+
+            if (send_uplink(xmt_array /* temp, hum */))
             {
                 set_state(STATE_UPLINK_STATUS);
                 last_uplink_time = millis();
+
+                // Print out array and message indicating array is sending
+                Serial.printf("$$$$ Sending Uplink --  Data Type: %d  Lat:0x%02x%02x%02x%02x Lon:0x%02x%02x%02x%02x  $$$$\r\n", xmt_array[0], xmt_array[1], xmt_array[2], xmt_array[3], xmt_array[4], xmt_array[5], xmt_array[6], xmt_array[7], xmt_array[8]);
+    
             }
             else
             {
@@ -963,5 +1060,41 @@ static void check_device_connection()
             set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
             is_device_joined = false;                // Reset the joined state if not connected
         }
+    }
+}
+
+/**
+ * @brief Store or set GNSS Values for later retrieval.
+ *
+ * This function stores lat and lon for retrieval and insertion into the broadcast data stream
+ * or retrieves the values
+ * Input param: store_or_retrieve: GNSS_RETRIEVE or GNSS_STORE
+ * gnss_data_store: pointer to the structure to store or retrieve the GNSS data
+ *
+ */
+static void store_retrieve_GNSS(uint8_t store_or_retrieve, gnss_data_t *gnss_data_store)
+{
+    // structure to store and retrieve and hold the gnss data
+    static gnss_data_t gnss_data_static = {0};
+
+    if (store_or_retrieve == GNSS_STORE)
+    {
+        // Store the GNSS data
+        gnss_data_static.latitude  = gnss_data_store->latitude;  // Latitude in degrees
+        gnss_data_static.longitude = gnss_data_store->longitude; // Longitude in degrees
+        gnss_data_static.altitude  = gnss_data_store->altitude;  // Altitude in meters
+        gnss_data_static.speed     = gnss_data_store->speed;     // Speed in meters per second
+        gnss_data_static.course    = gnss_data_store->course;    // Course in degrees
+        gnss_data_static.numSat    = gnss_data_store->numSat;    // Number of satellites
+    }
+    else
+    {
+        // Retrieve the GNSS data
+        gnss_data_store->latitude  = gnss_data_static.latitude;  // Latitude in degrees
+        gnss_data_store->longitude = gnss_data_static.longitude; // Longitude in degrees
+        gnss_data_store->altitude  = gnss_data_static.altitude;  // Altitude in meters
+        gnss_data_store->speed     = gnss_data_static.speed;     // Speed in meters per second
+        gnss_data_store->course    = gnss_data_static.course;    // Course in degrees
+        gnss_data_store->numSat    = gnss_data_static.numSat;    // Number of satellites
     }
 }
