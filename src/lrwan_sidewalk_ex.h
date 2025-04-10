@@ -21,10 +21,10 @@
 #define LORAWAN_PORT 152
 
 // Interval in seconds for sending sensor data as uplink
-#define UPLINK_INTERVAL_SECONDS 15 /* 60 */
+#define UPLINK_INTERVAL_SECONDS 5 /* 60 */
 
 // Timeout in seconds for no response after last sent uplink
-#define UPLINK_NO_RESPONSE_TIMEOUT_SECONDS 15 /* 60 */
+#define UPLINK_NO_RESPONSE_TIMEOUT_SECONDS 5 /* 60 */
 
 // I2C interface configuration
 #define I2C_POWER_PIN 7
