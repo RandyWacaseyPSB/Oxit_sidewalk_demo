@@ -175,7 +175,7 @@ static void read_sensor(void /* float *temperature, float *humidity */);
  * @return True if successful, false otherwise.
  */
 // static bool send_uplink(float temperature, float humidity);
-static bool send_uplink(uint8_t *data_send /* float temperature, float humidity*/);
+static bool send_uplink(uint8_t *data_send, uint16_t datalen);
 
 /**
  * @brief Handles the downlink data.
@@ -301,7 +301,7 @@ static void read_sensor(void /* float *temperature, float *humid */)
 #endif
 }
 
-static bool send_uplink(uint8_t *data_send /* float temperature, float humidity*/)
+static bool send_uplink(uint8_t *data_send, uint16_t datalen)
 {
     bool uplink_done = false;
 
@@ -313,7 +313,7 @@ static bool send_uplink(uint8_t *data_send /* float temperature, float humidity*
             break;
         }
 
-        size_t data_len = strlen((const char *)data_send);
+        size_t data_len = datalen; // strlen((const char *)data_send);
 
         if (data_len > MAX_USER_PAYLOAD)
         {
@@ -340,7 +340,7 @@ static bool send_uplink(uint8_t *data_send /* float temperature, float humidity*
         Serial.print("Uplink in hex: ");
         helper_print_hex_array((uint8_t *)&uplink_data, sizeof(uplink_data));
 
-        mcm.send_uplink((uint8_t *)&uplink_data, sizeof(uplink_data), LORAWAN_PORT, MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_CONF);
+        mcm.send_uplink((uint8_t *)&uplink_data, sizeof(uplink_data), LORAWAN_PORT, MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_UNCONF /* MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_CONF*/);
 
         uplink_done = true; // Assume success if we reach this point
 
@@ -636,7 +636,7 @@ void setup()
     Serial.println("Starting in sidewalk BLE mode");
     currentState                             = STATE_SET_CONNECT_MODE;                       // Set to sidewalk mode
     is_device_have_valid_lorawan_credentials = 0;                                            // No valid credentials initially
-    device_mode                              = ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK; // Set device mode to FSK
+    device_mode                              = ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS; // ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK; // Set device mode to FSK
 
     // Check if credentials are available in the NVS storage
     if (true == nvs_storage_get_lorawan_cred(saved_network_key, saved_join_eui, saved_dev_eui))
@@ -741,7 +741,8 @@ void set_state(system_state state_value)
 
 void run_state_machine()
 {
-    static uint32_t last_uplink_time = millis();
+    static uint32_t last_uplink_time    = millis();
+    static uint32_t time_last_connected = millis(); // Time not connected
 
     // check for new binary file downloaded
     if (mcm.is_new_firmware())
@@ -833,14 +834,14 @@ void run_state_machine()
             xmt_array[7] = (longitude >> 8) & 0xFF;
             xmt_array[8] = longitude & 0xFF;
 
-            if (send_uplink(xmt_array /* temp, hum */))
+            if (send_uplink(xmt_array, FIXED_ARRAY_LEN /* temp, hum */))
             {
                 set_state(STATE_UPLINK_STATUS);
                 last_uplink_time = millis();
 
                 // Print out array and message indicating array is sending
-                Serial.printf("$$$$ Sending Uplink --  Data Type: %d  Lat:0x%02x%02x%02x%02x Lon:0x%02x%02x%02x%02x  $$$$\r\n", xmt_array[0], xmt_array[1], xmt_array[2], xmt_array[3], xmt_array[4], xmt_array[5], xmt_array[6], xmt_array[7], xmt_array[8]);
-    
+                Serial.printf("$$$$ Sending Uplink --  Data Type: %d  Lat:0x%02x%02x%02x%02x Lon:0x%02x%02x%02x%02x  $$$$\r\n", xmt_array[0], xmt_array[1], xmt_array[2], xmt_array[3], xmt_array[4], xmt_array[5], xmt_array[6], xmt_array[7],
+                              xmt_array[8]);
             }
             else
             {
@@ -852,7 +853,7 @@ void run_state_machine()
         case STATE_UPLINK_STATUS: {
             // check for the uplink status
             // Check if the uplink is pending or transmitted
-            if (mcm.is_last_uplink_pending() && millis() - last_uplink_time < UPLINK_NO_RESPONSE_TIMEOUT_SECONDS * 1000)
+            if (mcm.is_last_uplink_pending() && ((millis() - last_uplink_time) < (UPLINK_NO_RESPONSE_TIMEOUT_SECONDS * 1000)))
             {
                 if (currentState != STATE_UPLINK_STATUS)
                 {
@@ -915,8 +916,46 @@ void run_state_machine()
                 set_state(STATE_SET_CONNECT_MODE);
             }
 
+            // RAS Add 4/12/25
+            // Check for not connected beyond limit
+            // If so, go back to connect mode
+            if (mcm.is_connected())
+            {
+                time_last_connected = millis(); // Reset the counter
+            }
+
+            // Print out the time not connected
+            uint32_t current_num = (millis() - time_last_connected) / 1000;
+            if (current_num)
+            {
+                static uint32_t last_num_printed = 0;
+
+                // only print each number of seconds once
+                if (current_num != last_num_printed)
+                {
+                    last_num_printed = current_num;
+                    Serial.printf("#### Not connected for %d seconds ####\r\n", (millis() - time_last_connected) / 1000);
+                }
+            }
+
+            // Check if not connected for too long
+            // If so, go back to connect mode
+            if ((millis() - time_last_connected) > (NOT_CONN_LIMIT_BEF_RESTART * 1000))
+            {
+                // Only if mode was CSS or FSK (BLE has its own reconnect protocol)
+                if ((device_mode == ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS) || (device_mode == ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK))
+                {
+
+                    Serial.println("#### Not connected for too long, going back to connect mode ####");
+                    switch_protocol_mode(device_mode);
+                    time_last_connected = millis(); // Reset the counter
+                    // set_state(STATE_SET_CONNECT_MODE); // Set state to connect mode
+                    break;
+                }
+            }
+
             // Uplink every N seconds
-            if (millis() - last_uplink_time > UPLINK_INTERVAL_SECONDS * 1000)
+            if ((millis() - last_uplink_time) > (UPLINK_INTERVAL_SECONDS * 1000))
             {
                 last_uplink_time = millis();
                 set_state(STATE_READ_SENSOR);
