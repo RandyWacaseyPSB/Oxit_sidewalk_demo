@@ -12,7 +12,7 @@ static uint32_t solid_led_state;
 Adafruit_NeoPixel pixels(NUMPIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // Enum to differentiate the current LED pattern.
-typedef enum 
+typedef enum
 {
     PATTERN_NONE,
     PATTERN_BLINK,
@@ -21,7 +21,7 @@ typedef enum
 } pattern_type_t;
 
 // Structure that holds the state of the currently active LED pattern.
-typedef struct 
+typedef struct
 {
     pattern_type_t type;
 
@@ -42,7 +42,7 @@ typedef struct
     uint8_t bootStep;  // current step (0-255)
     uint32_t bootLastStepTime;
     uint32_t bootStepInterval; // Time between steps (e.g., 4 ms)
-} led_pattern_t; // typedef for led_pattern
+} led_pattern_t;               // typedef for led_pattern
 
 // Global variable to store the current active pattern.
 static led_pattern_t activePattern = {PATTERN_NONE};
@@ -58,12 +58,11 @@ void led_control_init()
 {
     pinMode(NEOPIXEL_POWER_PIN, OUTPUT);
     digitalWrite(NEOPIXEL_POWER_PIN, HIGH);
-    pixels.setBrightness(20);   //update the brightness of the indicator LED
+    pixels.setBrightness(20); // update the brightness of the indicator LED
     pixels.begin();
     pixels.clear(); // Turn off all pixels.
     pixels.show();
 }
-
 
 /**
  * @brief Sets the LED to a solid color (non-blinking).
@@ -101,8 +100,8 @@ void blink_color(uint32_t color, int times, int interval)
         pixels.show();
         delay(interval);
     }
-    
-    /// Restore the solid LED state 
+
+    /// Restore the solid LED state
     solid_led(solid_led_state);
 
 #else
@@ -117,8 +116,8 @@ void blink_color(uint32_t color, int times, int interval)
     // Force immediate first ON state.
     pixels.setPixelColor(0, color);
     pixels.show();
-    activePattern.ledState         = true;
-    activePattern.lastChangeTime   = millis();
+    activePattern.ledState       = true;
+    activePattern.lastChangeTime = millis();
 #endif
 }
 
@@ -162,7 +161,7 @@ void led_boot_up()
     pixels.setPixelColor(0, pixels.Color(0, 0, 0));
     pixels.show();
 
-    /// Restore the solid LED state 
+    /// Restore the solid LED state
     solid_led(solid_led_state);
 #else
     activePattern.type             = PATTERN_BOOT_UP;
@@ -304,8 +303,11 @@ void set_led_state(led_state_t state)
         case LED_DEVICE_NOT_CONNECTED:
             solid_led(NEO_PIXEL_RED_COLOR);
             break;
-        case LED_SENDING_UPLINK:
+        case LED_SENDING_UPLINK_W_GNSS:
             blink_color(NEO_PIXEL_BLUE_COLOR, 3, NEO_PIXEL_BLINK_PERIOD_MS);
+            break;
+        case LED_SENDING_UPLINK_NO_GNSS:
+            blink_color(NEO_PIXEL_BLUE_COLOR, 1, NEO_PIXEL_BLINK_PERIOD_MS);
             break;
         case LED_SENDING_UPLINK_FAIL:
             blink_color(NEO_PIXEL_RED_COLOR, 3, NEO_PIXEL_BLINK_PERIOD_MS);

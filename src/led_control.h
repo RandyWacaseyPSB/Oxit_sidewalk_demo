@@ -33,17 +33,17 @@
  *
  * This pin is used to control power to the NeoPixel.
  */
-#define NEOPIXEL_POWER_PIN 21 
+#define NEOPIXEL_POWER_PIN 21
 
 // Primary Colors
-#define NEO_PIXEL_RED_COLOR    pixels.Color(255, 0, 0)
-#define NEO_PIXEL_GREEN_COLOR  pixels.Color(0, 255, 0)
-#define NEO_PIXEL_BLUE_COLOR   pixels.Color(0, 0, 255)
+#define NEO_PIXEL_RED_COLOR   pixels.Color(255, 0, 0)
+#define NEO_PIXEL_GREEN_COLOR pixels.Color(0, 255, 0)
+#define NEO_PIXEL_BLUE_COLOR  pixels.Color(0, 0, 255)
 
 // Secondary Colors
-#define NEO_PIXEL_YELLOW_COLOR pixels.Color(255, 255, 0)
-#define NEO_PIXEL_ORANGE_COLOR pixels.Color(255, 165, 0)
-#define NEO_PIXEL_CYAN_COLOR   pixels.Color(0, 255, 255)
+#define NEO_PIXEL_YELLOW_COLOR  pixels.Color(255, 255, 0)
+#define NEO_PIXEL_ORANGE_COLOR  pixels.Color(255, 165, 0)
+#define NEO_PIXEL_CYAN_COLOR    pixels.Color(0, 255, 255)
 #define NEO_PIXEL_MAGENTA_COLOR pixels.Color(255, 0, 255)
 
 // Other Colors
@@ -57,7 +57,6 @@
 // Shades of White
 #define NEO_PIXEL_WARM_WHITE_COLOR pixels.Color(255, 244, 229)
 #define NEO_PIXEL_COOL_WHITE_COLOR pixels.Color(240, 255, 255)
-
 
 /**
  * @def NEO_PIXEL_BLINK_PERIOD_MS
@@ -94,14 +93,15 @@ void process_blink_requests();
 void led_boot_up();
 
 // Enum to handle different LED states
-typedef enum 
+typedef enum
 {
     LED_JOINED_LORAWAN_NETWORK,
     LED_JOINED_SW_BLE_NETWORK,
     LED_JOINED_SW_FSK_NETWORK,
     LED_JOINED_SW_CSS_NETWORK,
     LED_DEVICE_NOT_CONNECTED,
-    LED_SENDING_UPLINK,
+    LED_SENDING_UPLINK_W_GNSS,
+    LED_SENDING_UPLINK_NO_GNSS,
     LED_SENDING_UPLINK_FAIL,
     LED_RECEIVED_DOWNLINK,
     LED_RECEIVE_DATA,

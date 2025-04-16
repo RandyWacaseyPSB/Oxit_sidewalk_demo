@@ -328,7 +328,21 @@ static bool send_uplink(uint8_t *data_send, uint16_t datalen)
 
         Serial.printf("Sending UPLINK ..... %d bytes of data: ", data_len);
 
-        set_led_state(LED_SENDING_UPLINK);
+        // change indication based on GNSS valid or not
+        gnss_data_t gnss_data_monitor = {0};
+        store_retrieve_GNSS(GNSS_RETRIEVE, &gnss_data_monitor); // Retrieve GNSS data
+        // if latitude or longitude are 0 indicate in LED state
+        if ((gnss_data_monitor.latitude == 0.0) || (gnss_data_monitor.longitude == 0.0))
+        {
+
+            set_led_state(LED_SENDING_UPLINK_NO_GNSS);
+        }
+        else
+        {
+
+            set_led_state(LED_SENDING_UPLINK_W_GNSS);
+        }
+
         // Code to send uplink with temperature and humidity data
         // Serial.printf("Sending uplink: Temp = %.2f, Humidity = %.2f, Reboot counter = %d\r\n", temperature, humidity, uplink_data.reboot_count);
 
