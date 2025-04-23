@@ -24,7 +24,7 @@
 #define UPLINK_INTERVAL_SECONDS 5 /* 60 */
 
 // Timeout in seconds for no response after last sent uplink
-#define UPLINK_NO_RESPONSE_TIMEOUT_SECONDS   (2) /* 5  *//* 60 */
+#define UPLINK_NO_RESPONSE_TIMEOUT_SECONDS /* (10) */  (2)  /* 5  *//* 60 */
 
 // Timeout before we attempt a reconnect (with no network)
 #define NOT_CONN_LIMIT_BEF_RESTART (60)

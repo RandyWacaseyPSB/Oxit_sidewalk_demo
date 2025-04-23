@@ -1114,6 +1114,9 @@ MCM_STATUS MCM::connect_network()
 
 void MCM::handle_rx_events()
 {
+
+   // uint16_t rx_bytes_rtn = 0;
+
     // check if any data to process
     // TODO: add the timeout here
     if (this->is_rx_received)

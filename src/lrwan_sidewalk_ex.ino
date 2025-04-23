@@ -179,8 +179,10 @@ static bool send_uplink(uint8_t *data_send, uint16_t datalen);
 
 /**
  * @brief Handles the downlink data.
+ * 
+ * @return True if downlink data is available, false otherwise.
  */
-static void handle_downlink();
+static bool handle_downlink();
 
 /**
  * @brief Validates the LoRaWAN credentials.
@@ -354,7 +356,7 @@ static bool send_uplink(uint8_t *data_send, uint16_t datalen)
         Serial.print("Uplink in hex: ");
         helper_print_hex_array((uint8_t *)&uplink_data, sizeof(uplink_data));
 
-        mcm.send_uplink((uint8_t *)&uplink_data, sizeof(uplink_data), LORAWAN_PORT, MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_UNCONF /* MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_CONF*/);
+        mcm.send_uplink((uint8_t *)&uplink_data, sizeof(uplink_data), LORAWAN_PORT, /*  MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_UNCONF */ MCM_UPLINK_TYPE::MCM_UPLINK_TYPE_CONF);
 
         uplink_done = true; // Assume success if we reach this point
 
@@ -364,8 +366,10 @@ static bool send_uplink(uint8_t *data_send, uint16_t datalen)
     return uplink_done;
 }
 
-static void handle_downlink()
+static bool handle_downlink()
 {
+bool rtn_val = false;
+
     // lets check if any download is available
     if (mcm.is_downlink_available())
     {
@@ -399,8 +403,13 @@ static void handle_downlink()
         helper_print_hex_array(received_data, received_len);
         Serial.printf("\r\n");
 
+        // Set flag that downlink arrived
+        rtn_val = true;
+
         Serial.println("----------------------------------------------------");
     }
+
+    return rtn_val;
 }
 
 bool is_all_ff(uint8_t *arr, uint8_t len)
@@ -482,9 +491,9 @@ void switch_protocol_mode(ConnectionMode new_mode)
 
     // Stop the current network connection
     mcm.stop_network();
-    delay(500);
+    delay(1000);
 
-    set_led_state(LED_DEVICE_NOT_CONNECTED);
+    //  set_led_state(LED_DEVICE_NOT_CONNECTED);
     is_device_joined = false;
 
     // Log the mode switching
@@ -496,12 +505,24 @@ void switch_protocol_mode(ConnectionMode new_mode)
             break;
         case ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE:
             Serial.println("Sidewalk BLE");
+
+            //set_led_state(LED_JOINED_SW_BLE_NETWORK); // Set LED state for BLE network joined
+                                                      // not really joined but need indication
+
             break;
         case ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK:
             Serial.println("Sidewalk FSK");
+
+            //set_led_state(LED_JOINED_SW_FSK_NETWORK); // Set LED state for FSK network joined
+                                                      // not really joined but need indication
+
             break;
         case ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS:
             Serial.println("Sidewalk CSS");
+
+            //set_led_state(LED_JOINED_SW_CSS_NETWORK); // Set LED state for CSS network joined
+                                                      // not really joined but need indication
+
             break;
         default:
             Serial.println("No Connection (NC)");
@@ -624,7 +645,7 @@ void setup()
     }
     // Enable/disable debug serial logs (logs will be available on the default serial port of the Arduino board being used)
     // Caution: Turning debug logs on can flood the serial logs
-    mcm.set_debug_enabled(true);
+    mcm.set_debug_enabled(false /* true */);
 
     // reboot the module
     mcm.hw_reset();
@@ -646,8 +667,8 @@ void setup()
     uplink_data.reboot_count = nvs_storage_get_reboot_count();
     Serial.println("Reboot count: " + String(uplink_data.reboot_count));
 
-    // Start in sidewalk BLE mode regardless of the validity of LoRaWAN credentials
-    Serial.println("Starting in sidewalk BLE mode");
+    // Start in sidewalk CSS .... old ... BLE mode regardless of the validity of LoRaWAN credentials
+    Serial.println("Starting in sidewalk CSS mode");
     currentState                             = STATE_SET_CONNECT_MODE;                       // Set to sidewalk mode
     is_device_have_valid_lorawan_credentials = 0;                                            // No valid credentials initially
     device_mode                              = ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS; // ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK; // Set device mode to FSK
@@ -785,6 +806,32 @@ void run_state_machine()
         case STATE_SET_CONNECT_MODE: {
             set_mcm_connect_mode(device_mode);
             set_state(STATE_JOIN_NETWORK);
+
+            // RAS Mod 4/23/25... indicate protocol as soon as changed... dont wait for network connect
+
+            switch (device_mode)
+            {
+
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE:
+
+                    set_led_state(LED_ATTEMPT_JOIN_BLE_NETWORK); // Set LED state for BLE network join attempt
+
+                    break;
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK:
+
+                    set_led_state(LED_ATTEMPT_JOIN_FSK_NETWORK); // Set LED state for FSK network join attempt
+
+                    break;
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS:
+
+                    set_led_state(LED_ATTEMPT_JOIN_CSS_NETWORK); // Set LED state for CSS network join attempt
+
+                    break;
+                default:
+
+                    break;
+            }
+
             break;
         }
 
@@ -916,7 +963,11 @@ void run_state_machine()
                 break;
             }
             // Handle downlink if any
-            handle_downlink();
+           bool data_arrived = handle_downlink();
+
+
+
+
 
             // If MCM has been rebooted, set the connection mode again
             if (mcm.get_context_mgr_is_mcm_reset())
@@ -933,7 +984,7 @@ void run_state_machine()
             // RAS Add 4/12/25
             // Check for not connected beyond limit
             // If so, go back to connect mode
-            if (mcm.is_connected())
+            if (   data_arrived == true    /*            mcm.is_connected()    */     )
             {
                 time_last_connected = millis(); // Reset the counter
             }
@@ -1110,8 +1161,9 @@ static void check_device_connection()
         if (is_device_joined && device_mode != ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE)
         {
             Serial.println("Device not connected to network.");
-            set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
-            is_device_joined = false;                // Reset the joined state if not connected
+            // 4/23/25... RAS .. commented out to show protocol
+            //    set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
+            is_device_joined = false; // Reset the joined state if not connected
         }
     }
 }

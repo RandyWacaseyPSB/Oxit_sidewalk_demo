@@ -327,6 +327,16 @@ void set_led_state(led_state_t state)
         case LED_EEPROM_FAIL:
             blink_color(NEO_PIXEL_RED_COLOR, 5, NEO_PIXEL_BLINK_PERIOD_MS);
             break;
+        case LED_ATTEMPT_JOIN_BLE_NETWORK:
+            solid_led(NEO_PIXEL_YELLOW_COLOR);
+            break;
+        case LED_ATTEMPT_JOIN_FSK_NETWORK:
+            solid_led(NEO_PIXEL_PURPLE_COLOR);
+            break;
+        case LED_ATTEMPT_JOIN_CSS_NETWORK:
+            solid_led(NEO_PIXEL_COOL_WHITE_COLOR);
+            break;
+
         default:
             break;
     }
