@@ -273,6 +273,23 @@ bool gnssCheckin(gnss_data_t *gnss_data_rtn)
         }
     }
 
+    // On a 5 second schedule: Print out the date and time from the GPS
+    static uint32_t lastPrint = 0;
+    if (millis() - lastPrint > 5000)
+    {
+        lastPrint = millis(); // Update the last print time
+
+        // Print date and time if valid
+        if (
+            (gps.date.isValid())     && 
+            (gps.time.isValid())     &&
+            (gps.date.year() > 2024) &&   // was printing garbage dates until valid
+            (gps.date.year() < 2035))
+        {
+            Serial.printf("Date: %02d/%02d/%02d, Time: %02d:%02d:%02d\r\n", gps.date.month(), gps.date.day(), gps.date.year(), gps.time.hour(), gps.time.minute(), gps.time.second());
+        }
+    }
+
     return rtnVal; // Return the status of GPS data availability
 }
 

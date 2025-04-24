@@ -977,7 +977,8 @@ void run_state_machine()
                 mcm.get_segmented_file_download_status(&file_status);
                 // Serial.println("MCM reset detected, connecting again");
                 is_device_joined = false;
-                set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
+                // Dont need to set the LED state here, as it will be set in the next state
+                //set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
                 set_state(STATE_SET_CONNECT_MODE);
             }
 
