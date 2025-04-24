@@ -27,7 +27,7 @@
 #define UPLINK_NO_RESPONSE_TIMEOUT_SECONDS /* (10) */  (2)  /* 5  *//* 60 */
 
 // Timeout before we attempt a reconnect (with no network)
-#define NOT_CONN_LIMIT_BEF_RESTART (60)
+#define NOT_CONN_LIMIT_BEF_RESTART (90)
 
 // Data len (was depending on strlen() but if lat/lon had a '0' byte the length would be off)
 #define FIXED_ARRAY_LEN (9) // Protocol type + 4 bytes Lat + 4 bytes Lon
