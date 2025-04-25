@@ -21,7 +21,10 @@
 #define LORAWAN_PORT 152
 
 // Interval in seconds for sending sensor data as uplink
-#define UPLINK_INTERVAL_SECONDS 5 /* 60 */
+// #define UPLINK_INTERVAL_SECONDS /* (10) */ /* (20) */ (15) /* (5) */  /* 60 */
+#define CSS_UPLINK_INTERVAL_SECONDS  (10) /* (5) */  /* 60 */
+#define FSK_UPLINK_INTERVAL_SECONDS  (15) /* (5) */  /* 60 */
+#define BLE_UPLINK_INTERVAL_SECONDS  (10) /* (5) */  /* 60 */
 
 // Timeout in seconds for no response after last sent uplink
 #define UPLINK_NO_RESPONSE_TIMEOUT_SECONDS /* (10) */  (2)  /* 5  *//* 60 */

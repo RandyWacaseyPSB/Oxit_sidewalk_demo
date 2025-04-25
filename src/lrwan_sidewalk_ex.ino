@@ -179,7 +179,7 @@ static bool send_uplink(uint8_t *data_send, uint16_t datalen);
 
 /**
  * @brief Handles the downlink data.
- * 
+ *
  * @return True if downlink data is available, false otherwise.
  */
 static bool handle_downlink();
@@ -225,6 +225,12 @@ static void check_device_connection();
 #define GNSS_RETRIEVE (0x02)
 #define GNSS_STORE    (0x03)
 static void store_retrieve_GNSS(uint8_t store_or_retrieve, gnss_data_t *gnss_data_store);
+
+/**
+ * @brief Retrieves the current state and prints it (for debug)
+ *
+ */
+static void print_state(void);
 
 /******************************************************************************
  * STATIC FUNCTIONS
@@ -368,7 +374,7 @@ static bool send_uplink(uint8_t *data_send, uint16_t datalen)
 
 static bool handle_downlink()
 {
-bool rtn_val = false;
+    bool rtn_val = false;
 
     // lets check if any download is available
     if (mcm.is_downlink_available())
@@ -506,22 +512,22 @@ void switch_protocol_mode(ConnectionMode new_mode)
         case ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE:
             Serial.println("Sidewalk BLE");
 
-            //set_led_state(LED_JOINED_SW_BLE_NETWORK); // Set LED state for BLE network joined
-                                                      // not really joined but need indication
+            // set_led_state(LED_JOINED_SW_BLE_NETWORK); // Set LED state for BLE network joined
+            //  not really joined but need indication
 
             break;
         case ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK:
             Serial.println("Sidewalk FSK");
 
-            //set_led_state(LED_JOINED_SW_FSK_NETWORK); // Set LED state for FSK network joined
-                                                      // not really joined but need indication
+            // set_led_state(LED_JOINED_SW_FSK_NETWORK); // Set LED state for FSK network joined
+            //  not really joined but need indication
 
             break;
         case ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS:
             Serial.println("Sidewalk CSS");
 
-            //set_led_state(LED_JOINED_SW_CSS_NETWORK); // Set LED state for CSS network joined
-                                                      // not really joined but need indication
+            // set_led_state(LED_JOINED_SW_CSS_NETWORK); // Set LED state for CSS network joined
+            //  not really joined but need indication
 
             break;
         default:
@@ -735,22 +741,20 @@ void loop()
     // Call the handleButtonPress function to handle button press and debounce
     handleButtonPress();
 
-    // See if new gnss data is available (dont hit too often)
-#if 0
- MOVED TO READ_SENSOR   
-    static uint32_t gnss_checkin_timer_u32 = 0;
-    if ((millis() - gnss_checkin_timer_u32) > 50)
+#if 1
+
+
+    // ONE SECOND TASKS
+    // ====================
+
+    
+    static uint32_t print_state_timer_u32 = 0;
+    if ((millis() - print_state_timer_u32) > 1000)
     {
-        gnss_checkin_timer_u32 = millis();
-
-        bool dataAvail_b = gnssCheckin(&gnss_data);
-        if (dataAvail_b)
-        {
-
-            Serial.printf("@@@@  Lat:%f  Lon:%f  Alt:%.1f  #Sat:%d  @@@@\r\n    ", gnss_data.latitude, gnss_data.longitude, gnss_data.altitude, gnss_data.numSat);
-
-            // Process the GNSS data as needed
-        }
+        print_state_timer_u32 = millis();
+       
+       // Every second print the system state
+       // print_state();
     }
 #endif
 
@@ -772,6 +776,15 @@ void set_state(system_state state_value)
 {
     Serial.printf("Setting state to: %s\r\n", state_names[state_value]);
     currentState = state_value;
+}
+
+/**
+ * @brief Retrieves the current state and prints it (for debug)
+ *
+ */
+void print_state(void)
+{
+    Serial.printf("Current state: %s\r\n", state_names[currentState]);
 }
 
 void run_state_machine()
@@ -963,11 +976,7 @@ void run_state_machine()
                 break;
             }
             // Handle downlink if any
-           bool data_arrived = handle_downlink();
-
-
-
-
+            bool data_arrived = handle_downlink();
 
             // If MCM has been rebooted, set the connection mode again
             if (mcm.get_context_mgr_is_mcm_reset())
@@ -978,14 +987,14 @@ void run_state_machine()
                 // Serial.println("MCM reset detected, connecting again");
                 is_device_joined = false;
                 // Dont need to set the LED state here, as it will be set in the next state
-                //set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
+                // set_led_state(LED_DEVICE_NOT_CONNECTED); // Set LED state for not connected
                 set_state(STATE_SET_CONNECT_MODE);
             }
 
             // RAS Add 4/12/25
             // Check for not connected beyond limit
             // If so, go back to connect mode
-            if (   data_arrived == true    /*            mcm.is_connected()    */     )
+            if (data_arrived == true /*            mcm.is_connected()    */)
             {
                 time_last_connected = millis(); // Reset the counter
             }
@@ -1000,7 +1009,7 @@ void run_state_machine()
                 if (current_num != last_num_printed)
                 {
                     last_num_printed = current_num;
-                    Serial.printf("#### Not connected for %d seconds ####\r\n", (millis() - time_last_connected) / 1000);
+                    Serial.printf("## Downlink drought:%d sec ##\r\n", ((millis() - time_last_connected) / 1000));
                 }
             }
 
@@ -1012,7 +1021,7 @@ void run_state_machine()
                 if ((device_mode == ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS) || (device_mode == ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK))
                 {
 
-                    Serial.println("#### Not connected for too long, going back to connect mode ####");
+                    Serial.println("#### No downlinks received...past limit...going back to connect mode ####");
                     switch_protocol_mode(device_mode);
                     time_last_connected = millis(); // Reset the counter
                     // set_state(STATE_SET_CONNECT_MODE); // Set state to connect mode
@@ -1020,12 +1029,32 @@ void run_state_machine()
                 }
             }
 
-            // Uplink every N seconds
-            if ((millis() - last_uplink_time) > (UPLINK_INTERVAL_SECONDS * 1000))
+            // Uplink every N seconds (dep on protocol)
+            // ===========================================
+            uint32_t uplink_interval_seconds = 20;
+            switch (device_mode)
+            {
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_BLE:
+                    uplink_interval_seconds = BLE_UPLINK_INTERVAL_SECONDS;
+                    break;
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_FSK:
+                    uplink_interval_seconds = FSK_UPLINK_INTERVAL_SECONDS;
+                    break;
+                case ConnectionMode::CONNECTION_MODE_SIDEWALK_CSS:
+                    uplink_interval_seconds = CSS_UPLINK_INTERVAL_SECONDS;
+                    break;
+                default:
+                    uplink_interval_seconds = 20; // Error mode
+                    break;
+            }
+
+            if ((millis() - last_uplink_time) > (uplink_interval_seconds * 1000))
             {
                 last_uplink_time = millis();
                 set_state(STATE_READ_SENSOR);
             }
+            // =========================================
+
             break;
         }
         case STATE_FIRMWARE_UPDATE: {
