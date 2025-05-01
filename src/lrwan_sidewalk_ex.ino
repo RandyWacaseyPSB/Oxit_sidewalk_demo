@@ -265,19 +265,52 @@ static bool initiate_network_join()
     return true;
 }
 
-static void read_sensor(void /* float *temperature, float *humid */)
+#define TIME_TO_WAIT_FOR_VALID_GNSS (2200) // 2 seconds + buffer as GNSS is on a 1 second schedule
+// Spinning to wait for valid GNSS data as we were seeing occasional 0,0's that didn't make sense
+static void read_sensor(void)
 {
+    bool dataAvail_b = false;
     gnss_data_t gnss_data_store = {0};
 
-    bool dataAvail_b = gnssCheckin(&gnss_data_store);
-    if (dataAvail_b)
+    // Try to get a GNSS reading (non-zero) for up to 2+ seconds
+    unsigned long start_time = millis();
+    while ((millis() - start_time) < TIME_TO_WAIT_FOR_VALID_GNSS) // 2 seconds + buffer as GNSS is on a 1 second schedule
     {
+        dataAvail_b = gnssCheckin(&gnss_data_store);
+
+        if (dataAvail_b && (gnss_data_store.latitude != 0.0) && (gnss_data_store.longitude != 0.0))
+        {
+            Serial.printf("GNSS valid\r\n");
+            // Store the GNSS data for later use
+            // store_retrieve_GNSS(GNSS_STORE, &gnss_data_store);
+            break; // Exit the loop if we get a valid reading
+        }
+        //else if (millis() - start_time >= TIME_TO_WAIT_FOR_VALID_GNSS)
+        //{
+        //    Serial.println("No valid GNSS data received within 2 seconds.");
+        //}
+        else
+        {
+            Serial.println("Waiting for GNSS data...");
+        } 
+        
+        // Add a small delay to avoid flooding the serial output
+        delay(100); // Small delay to avoid flooding the serial output
+    }
+
+
+
+
+
+    // bool dataAvail_b = gnssCheckin(&gnss_data_store);
+    //if (dataAvail_b)
+    //{
         Serial.printf("@@@@  Lat:%f  Lon:%f  Alt:%.1f  #Sat:%d  @@@@\r\n", gnss_data_store.latitude, gnss_data_store.longitude, gnss_data_store.altitude, gnss_data_store.numSat);
-    }
-    else
-    {
-        Serial.println("@@@@ No GNSS data available, setting all to 0's @@@@\r\n");
-    }
+    //}
+    //else
+    //{
+    //    Serial.println("@@@@ No GNSS data available, setting all to 0's @@@@\r\n");
+    //}
 
     // Store data or all 0's
     store_retrieve_GNSS(GNSS_STORE, &gnss_data_store);
@@ -743,18 +776,16 @@ void loop()
 
 #if 1
 
-
     // ONE SECOND TASKS
     // ====================
 
-    
     static uint32_t print_state_timer_u32 = 0;
     if ((millis() - print_state_timer_u32) > 1000)
     {
         print_state_timer_u32 = millis();
-       
-       // Every second print the system state
-       // print_state();
+
+        // Every second print the system state
+        // print_state();
     }
 #endif
 
